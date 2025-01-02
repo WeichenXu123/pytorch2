@@ -444,7 +444,9 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
         )(ctx.saved_tensors, tangents)
 
         result = reductify(out_tangents, out_tangents_dims, ctx.out_dims, batch_size)
-        return result
+        if isinstance(result, torch.Tensor):
+            return result, None
+        return *result, None
 
     def backward(ctx, *grad_outputs):
         origin_grad_outputs = grad_outputs[:-1]
