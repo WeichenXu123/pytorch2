@@ -394,7 +394,9 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
         outputs, out_dims = restore_vmap(
             autograd_function.forward, in_dims, batch_size, randomness
         )(*operands)
-        return outputs, out_dims
+        if isinstance(outputs, torch.Tensor):
+            return outputs, out_dims
+        return *outputs, out_dims
 
     def setup_context(ctx, inputs, outputs):
         origin_outputs = outputs[:-1]
