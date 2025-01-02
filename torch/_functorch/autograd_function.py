@@ -414,10 +414,10 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
             # to the correct shape.
             # See NOTE: [Why can't we rely on autograd to reduce expanded gradients?]
             # for more details
-            ctx.input_shapes = tuple(
+            ctx._pt_input_shapes = tuple(
                 inp.shape if isinstance(inp, torch.Tensor) else None for inp in inputs
             )
-            ctx.saved_tensors_bdims = wrapped_ctx._pt_saved_tensors_bdims
+            ctx._pt_nested_saved_tensors_bdims = wrapped_ctx._pt_saved_tensors_bdims
 
         # See NOTE: [Why do we need to run setup_context under a vmap?]
         restore_vmap(
@@ -427,7 +427,7 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
             randomness,
         )(inputs, origin_outputs)
 
-        ctx.out_dims = out_dims
+        ctx._pt_out_dims = out_dims
 
 
     def jvp(ctx, *tangents):
@@ -438,12 +438,12 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
         tangent_in_dims = get_tangents_in_dims(in_dims, tangents)
         out_tangents, out_tangents_dims = restore_vmap(
             jvp_no_context,
-            (ctx.saved_tensors_bdims, tangent_in_dims),
+            (ctx._pt_nested_saved_tensors_bdims, tangent_in_dims),
             batch_size,
             randomness,
         )(ctx.saved_tensors, tangents)
 
-        result = reductify(out_tangents, out_tangents_dims, ctx.out_dims, batch_size)
+        result = reductify(out_tangents, out_tangents_dims, ctx._pt_out_dims, batch_size)
         if isinstance(result, torch.Tensor):
             return result, None
         return *result, None
@@ -458,11 +458,11 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
 
         grad_ins, grad_ins_dims = restore_vmap(
             backward_no_context,
-            ((ctx.saved_tensors_bdims, ctx.out_dims),),
+            ((ctx._pt_nested_saved_tensors_bdims, ctx._pt_out_dims),),
             batch_size,
             randomness,
         )((ctx.saved_tensors, origin_grad_outputs))
-        result = reductify(grad_ins, grad_ins_dims, in_dims, batch_size, ctx.input_shapes)
+        result = reductify(grad_ins, grad_ins_dims, in_dims, batch_size, ctx._pt_input_shapes)
         return result
 
     name = f"Vmapped{autograd_function.__name__}"
@@ -588,6 +588,9 @@ class CtxCustomSave(WrappedCtx):
     _pt_reserved_attrs = (
         "_pt_saved_tensors_bdims",
         "_pt_current_level",
+        "_pt_out_dims",
+        "_pt_input_shapes",
+        "_pt_nested_saved_tensors_bdims",
         *WrappedCtx._pt_reserved_attrs,
     )
 
