@@ -375,7 +375,7 @@ def custom_function_call_vmap_generate_rule(interpreter, autograd_function, *ope
     with interpreter.lower():
         outputs = custom_function_call(vmapped_function, *unwrapped_operands)
 
-    origin_outputs = outputs[:-1]
+    origin_outputs = outputs[:-1] if len(outputs) > 2 else outputs[0]
     out_dims = outputs[-1]
     return wrap_batched(origin_outputs, out_dims, interpreter.level())
 
