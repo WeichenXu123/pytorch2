@@ -455,26 +455,23 @@ def vmapify_autograd_function(autograd_function, in_dims, batch_size, randomness
         return *result, None
 
     def backward(ctx, *grad_outputs):
-        if isinstance(Generated._pt_out_dims, tuple):
-            origin_grad_outputs = grad_outputs[:-1]
-        else:
-            origin_grad_outputs = grad_outputs[0]
+        origin_grad_outputs = grad_outputs[:-1]
+        grad_outputs_in_dims = Generated._pt_out_dims
+
+        if not isinstance(grad_outputs_in_dims, tuple):
+            grad_outputs_in_dims = (grad_outputs_in_dims,)
+        
+        grad_outputs_in_dims = tuple(
+            in_dim if grad_output is not None else None
+            for grad_output, in_dim in
+            zip(origin_grad_outputs, grad_outputs_in_dims)
+        )
 
         def backward_no_context(inputs):
             saved_tensors, grad_outputs = inputs
             wrapped_ctx = CtxWithSavedTensors(ctx, saved_tensors)
-            if isinstance(grad_outputs, tuple):
-                return autograd_function.backward(wrapped_ctx, *grad_outputs)
-            else:
-                return autograd_function.backward(wrapped_ctx, grad_outputs)
+            return autograd_function.backward(wrapped_ctx, *grad_outputs)
 
-        if isinstance(origin_grad_outputs, tuple):
-            grad_outputs_in_dims = tuple(
-                in_dim if grad_output is not None else None
-                for grad_output, in_dim in zip(origin_grad_outputs, Generated._pt_out_dims)
-            )
-        else:
-            grad_outputs_in_dims = Generated._pt_out_dims
         grad_ins, grad_ins_dims = restore_vmap(
             backward_no_context,
             ((Generated._pt_nested_saved_tensors_bdims, grad_outputs_in_dims),),
