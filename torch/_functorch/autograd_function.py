@@ -589,10 +589,7 @@ class WrappedCtx:
 
 # Wraps ctx to create a new ctx object that overrides saved_tensors.
 class CtxWithSavedTensors(WrappedCtx):
-    _pt_reserved_attrs = (
-        "_pt_new_saved_tensors",
-        *WrappedCtx._pt_reserved_attrs
-    )
+    _pt_reserved_attrs = ("_pt_new_saved_tensors", *WrappedCtx._pt_reserved_attrs)
 
     def __init__(self, ctx, new_saved_tensors):
         super().__init__(ctx)
